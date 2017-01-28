@@ -1,0 +1,6 @@
+.idea
+node_modules
+db/**/*
+!db/.gitkeep
+*.sh
+parameters.json

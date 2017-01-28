@@ -1,0 +1,12 @@
+{
+  "common": {
+  },
+  "jwt": {
+    "secret": "[string] JWT secret",
+    "expiresIn": "[number] Token validity time in seconds"
+  },
+  "redis": {
+    "host": "[string] Redis host name",
+    "port": "[number] Redis port number"
+  }
+}
