@@ -1,23 +1,39 @@
 'use strict';
 
 const bodyPraser = require('body-parser');
+const cors = require('express-cors');
 const express = require('express');
-const expressJWT = require('express-jwt');
 const passport = require('passport');
 
-// Initializing an app
-const app = express();
+module.exports.init = (parametersCommon) => {
+  // Initializing an app
+  const app = express();
 
-// Attaching and configuring app middleware
-app.use(passport.initialize());
-app.use(bodyPraser.json());
-app.use(bodyPraser.urlencoded({extended: false}));
-app.use('*', function (req, res, next) {
-  res.set('Access-Control-Allow-Origin', 'http://localhost:4200');
-  res.set('Access-Control-Allow-Headers', 'Content-Type');
-  res.set('Access-Control-Allow-Credentials', 'true');
-  next();
-});
+  // Attaching and configuring app middleware
+  app.use(passport.initialize());
+  app.use(bodyPraser.json());
+  app.use(bodyPraser.urlencoded({extended: false}));
+  app.use(cors({
+    allowedOrigins: parametersCommon.allowedOrigins,
+    allowCredentials: true,
+    headers: [
+      'Authorization',
+      'Content-Type',
+    ]
+  }));
 
-// Exporting the app
-module.exports.app = app;
+  // Adding `unless` functionality to authMiddleware
+  let authMiddleware = require('./core/auth.service').jwtMiddleware;
+  authMiddleware.unless = require('express-unless');
+
+  app.use(authMiddleware.unless({
+    path: [
+      /\/api\/v1\/auth\/.*/,
+    ],
+  }));
+
+  // Attaching routes and middleware
+  app.use('/api', require('./api'));
+
+  return app;
+};

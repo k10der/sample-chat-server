@@ -1,12 +1,14 @@
 {
   "common": {
+    "allowedOrigins": "[array of strings] Origins, that are allowed to connect from. E.g. [\"localhost:8000\"]",
+    "port": "[number] Port to listen for incoming connections. E.g. 3000"
   },
   "jwt": {
-    "secret": "[string] JWT secret",
-    "expiresIn": "[number] Token validity time in seconds"
+    "secret": "[string] JWT secret. E.g. \"secret\"",
+    "expiresIn": "[number] Token validity time in seconds. E.g 3600"
   },
   "redis": {
-    "host": "[string] Redis host name",
-    "port": "[number] Redis port number"
+    "host": "[string] Redis host name. E.g. \"redis\"",
+    "port": "[number] Redis port number. E.g. 3309"
   }
 }

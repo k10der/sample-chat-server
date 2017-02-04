@@ -1,5 +1,5 @@
 'use strict';
-const socketIo = require('socket.io');
+const RoomsController = require('./rooms.controller');
 
 /**
  * Function to add socket.io functionality
@@ -15,13 +15,13 @@ module.exports.init = server => {
   }
 
   // Creating new socket io instance
-  let io = module.exports.io = socketIo(server, {
+  let io = module.exports.io = require('socket.io')(server, {
     path: '/chats',
     serveClient: false,
   });
 
   // Setting authorization rules
-  io.use(require('./core/auth.service').socketioJwtAuth);
+  io.use(require('./../core/auth.service.js').socketioJwtAuth);
 
   // Check origin
   // io.checkRequest = function (req, fn) {
@@ -30,9 +30,11 @@ module.exports.init = server => {
   // };
 
   io.on('connection', client => {
-    // Connect to previously connected rooms
-    console.log('client connected');
-
-    client.emit('message', {message: 'Welcome to the chat server.'});
+    // Setting handler for join room event
+    client.on('join_room', RoomsController.joinRoomAction);
+    // Setting handler for room message event
+    client.on('room_message', RoomsController.sendMessageAction);
   });
+
+  // TODO add disconnection handler
 };

@@ -12,8 +12,10 @@ module.exports = parameters => {
   return new Promise((resolve, reject) => {
     // Initializing redis
     require('./redis.service').init(parameters.common, parameters.redis);
-    // Setting client for a Nohm
-    require('nohm').Nohm.setClient(require('./redis.service').connection);
+    // Setting a client for a rooms service
+    require('./rooms.service').init(require('./redis.service').connection);
+    // Setting a client for a users service
+    require('./users.service.js').init(require('./redis.service').connection);
     // Initializing auth service
     require('./auth.service').init(parameters.common, parameters.jwt)
 
