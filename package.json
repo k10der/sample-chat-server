@@ -20,11 +20,13 @@
     "express-jwt": "^5.1.0",
     "express-unless": "^0.3.0",
     "jsonwebtoken": "^7.2.1",
+    "microtime": "^2.1.2",
     "passport": "^0.3.2",
     "passport-local": "^1.0.0",
     "redis": "^2.6.3",
     "socket.io": "^1.7.2",
-    "socketio-jwt": "^4.5.0"
+    "socketio-jwt": "^4.5.0",
+    "uuid": "^3.0.1"
   },
   "devDependencies": {
     "chai": "^3.5.0",

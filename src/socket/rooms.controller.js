@@ -1,5 +1,63 @@
 'use strict';
-const UserService = require('../core/users.service.js');
+const async = require('async');
+
+const RoomsService = require('../core/rooms.service');
+
+/**
+ * Create a room
+ *
+ * @param req
+ * @param res
+ */
+module.exports.createRoomAction = function(req, res) {
+  RoomsService.createRoom(this.user, req.room, (err, room) => {
+    if (err) {
+      // TODO
+      console.log(err);
+      return res({error: {}});
+    }
+    return res({data: {room}});
+  });
+};
+
+/**
+ * Delete a required room
+ *
+ * @param req
+ * @param res
+ */
+module.exports.deleteRoomAction = function(req, res) {
+  RoomsService.deleteRoom(this.user, req.room, (err, room) => {
+    if (err) {
+      // TODO
+      console.log(err);
+      return res({error: {}});
+    }
+    return res({data: {room}});
+  });
+};
+
+/**
+ * Get rooms by a request
+ *
+ * @param {Object} req - Request data
+ * @param {Function} res - Callback function
+ */
+module.exports.getRoomsAction = function (req, res) {
+  // Getting all the available rooms TODO
+  RoomsService.getAllRooms((err, rooms) => {
+    if (err) {
+      return res({
+        error: {
+
+        },
+      })
+    }
+
+    res({data: {rooms}});
+  });
+};
+
 /**
  * Join a particular room action
  *
@@ -8,73 +66,168 @@ const UserService = require('../core/users.service.js');
  * @return {*}
  */
 module.exports.joinRoomAction = function (req, res) {
-  // TODO check if a user can join a particular room
-  if (true) {
-    this.join(req.room.id);
+  // Getting room object
+  let room = req.room;
+
+  async.waterfall([
+    /**
+     * Check whether a room is already joined
+     *
+     * @param {Function} cb - Callback function
+     */
+    cb => {
+      // If a current socket is not in a room
+      if (this.isInRoom(room.id)) {
+        // TODO change to an standard error
+        return cb(new Error('Room is already joined'));
+      }
+
+      // Continue further processing
+      cb(null);
+    },
+    /**
+     * Check whether a room exists
+     *
+     * @param {Function} cb - Callback function
+     */
+    cb => {
+      RoomsService.isRoomExists(room, (err, exists) => {
+        if (!exists) {
+          // TODO change to an standard error
+          return cb(new Error('Room doesn\'t exist'));
+        }
+
+        cb(null);
+      })
+    },
+    /**
+     * TODO Check whether a user can join a room
+     *
+     * @param {Function} cb - Callback function
+     */
+    cb => {
+      return cb(null);
+    },
+    /**
+     * Join the room
+     *
+     * @param {Function} cb - Callback function
+     */
+    cb => this.joinRoom(room.id, cb),
+  ], err => {
+    // If an error has occurred
+    if (err) {
+      // TODO change to an standard error
+      return res({
+        data: {
+          roomJoined: false,
+          room: {
+            id: room.id,
+          },
+        },
+        error: {
+          message: 'Not joined',
+          status: 400,
+          statusCode: 100200,
+        }
+      });
+    }
+
+    // Sending a response
     res({
       data: {
         roomJoined: true,
         room: {
-          id: req.room.id,
+          id: room.id,
         },
       }
     });
-  } else {
-    cb({
-      data: {
-        roomJoined: false,
-        room: {
-          id: req.room.id,
-        },
-      },
-      error: {
-        message: 'Not joined',
-        status: 400,
-        statusCode: 100200,
-      }
-    });
-  }
+  });
 };
 
 /**
- * Send message to a room action
+ * Leave a particular room action
  *
  * @param {Object} req - Request data
  * @param {Function} res - Callback function
  * @return {*}
  */
-module.exports.sendMessageAction = function (req, res) {
-  // Setting local variables for a required data
+module.exports.leaveRoomAction = function (req, res) {
+  // Getting room object
   let room = req.room;
-  let message = req.message;
 
-  // If the client isn't connected to the specified room
-  if (!this.rooms.hasOwnProperty(room.id)) {
-    return res({
-      error: {
-        message: 'No room with the provided id exists',
-        status: 100001,
-        statusCode: 400,
+  async.waterfall([
+    /**
+     * Check whether a room is already joined
+     *
+     * @param {Function} cb - Callback function
+     */
+    cb => {
+      // If a current socket is not in the room
+      if (!this.isInRoom(room.id)) {
+        // TODO change to an standard error
+        return cb(new Error('User not joined to a particular room'));
+      }
+
+      // Continue further processing
+      cb(null);
+    },
+    /**
+     * Check whether the room exists
+     *
+     * @param {Function} cb - Callback function
+     */
+    cb => {
+      RoomsService.isRoomExists(room, (err, exists) => {
+        if (!exists) {
+          // TODO change to an standard error
+          return cb(new Error('Room doesn\'t exist'));
+        }
+
+        cb(null);
+      })
+    },
+    /**
+     * TODO Check whether a user can join a room
+     *
+     * @param {Function} cb - Callback function
+     */
+    cb => {
+      return cb(null);
+    },
+    /**
+     * Leave the room
+     *
+     * @param {Function} cb - Callback function
+     */
+    cb => this.leaveRoom(room.id, cb),
+  ], err => {
+    // If an error has occurred
+    if (err) {
+      // TODO change to an standard error
+      return res({
+        data: {
+          roomLeft: false,
+          room: {
+            id: room.id,
+          },
+        },
+        error: {
+          message: 'Not left',
+          status: 400,
+          statusCode: 100201,
+        }
+      });
+    }
+
+    // Sending a response
+    res({
+      data: {
+        roomLeft: true,
+        room: {
+          id: room.id,
+        },
       }
     });
-  }
-
-  let messageId = process.hrtime();
-  messageId = messageId[0] * 1e9 + messageId[1];
-
-  let newMessage = {
-    id: messageId,
-    user: this.id,
-    text: message.text,
-    createdAt: new Date(),
-  };
-  // TODO adding message to a db
-
-  // Broadcasting message to clients
-  this.broadcast.to(room.id).emit('room_message', {
-    room: {id: room.id},
-    message: newMessage,
   });
-
-  res({messageId});
 };

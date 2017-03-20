@@ -26,14 +26,18 @@ module.exports.init = (parametersCommon) => {
   let authMiddleware = require('./core/auth.service').jwtMiddleware;
   authMiddleware.unless = require('express-unless');
 
-  app.use(authMiddleware.unless({
-    path: [
-      /\/api\/v1\/auth\/.*/,
-    ],
-  }));
+  // app.use(authMiddleware.unless({
+  //   path: [
+  //     /\/api\/v1\/auth\/.*/,
+  //   ],
+  // }));
 
   // Attaching routes and middleware
   app.use('/api', require('./api'));
+  // Attaching unified error handler
+  app.use((err, req, res, next) => {
+    return res.status(err.statusCode).json(err);
+  });
 
   return app;
 };

@@ -1,9 +1,48 @@
 'use strict';
 const async = require('async');
+const uuid = require('uuid');
 
+const createError = require('./errors.service').createError;
 const upgradeFunction = require('../utils').upgradeFunction;
 
 let redis;
+
+/**
+ * Create
+ *
+ * @type {Function}
+ * @private
+ */
+const _createUser = upgradeFunction(function (userData, cb) {
+  // Creating a new user data object
+  let newUserData = {
+    id: uuid.v4(),
+    username: userData.username,
+    password: userData.password,
+    createdAt: (new Date()).getTime(),
+  };
+
+  // Creating a transaction
+  let multi = redis.multi({pipeline: false});
+
+  // Adding a new user
+  multi.hmset(
+    `model:user:entity:${newUserData.id}`,
+    'id', newUserData.id,
+    'username', newUserData.username,
+    'password', newUserData.password,
+    'createdAt', newUserData.createdAt
+  );
+
+  // Adding a user to unique user ids
+  // Setting reverse username->room link
+  multi.set(`model:user:by:username:${newUserData.username}`, newUserData.id);
+
+  // Performing the transaction
+  multi.exec((err, res) => {
+    cb(err, newUserData);
+  });
+});
 
 /**
  * Get user data by user's id
@@ -12,7 +51,7 @@ let redis;
  * @private
  */
 const _getUserById = upgradeFunction(function (userId, cb) {
-  redis.hgetall(`user:${userId}`, cb);
+  redis.hgetall(`model:user:entity:${userId}`, cb);
 });
 
 /**
@@ -22,7 +61,7 @@ const _getUserById = upgradeFunction(function (userId, cb) {
  * @private
  */
 const _getUserIdByUsername = upgradeFunction(function (username, cb) {
-  redis.get(`user:username:${username}`, cb);
+  redis.get(`model:user:by:username:${username}`, cb);
 });
 
 /**
@@ -34,15 +73,31 @@ module.exports.init = connection => {
   redis = connection;
 };
 
-module.exports.createUser = userData => {
+module.exports.createUser = (userData, cb) => {
+  async.waterfall([
+    // Checking if a user with given username already exists
+    cb => _getUserIdByUsername(userData.username, cb),
+    // Creating a new user
+    (userId, cb) => {
+      // If user exists
+      if (userId) {
+        // TODO set the correct error
+        return cb(createError());
+      }
 
+      // Creating a new user
+      _createUser(userData, cb);
+    }
+  ], (err, user) => {
+    cb(err, user);
+  });
 };
 
 /**
  * Get a user by id
  *
  * @param {number} userId - Required user's id
- * @param {function?} cb - Callback function
+ * @param {Function?} cb - Callback function
  */
 module.exports.getUserById = (userId, cb) => {
   _getUserById(userId, cb);

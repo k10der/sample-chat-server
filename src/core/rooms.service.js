@@ -12,7 +12,7 @@ let redis;
  * @private
  */
 const _getRoomById = upgradeFunction(function (roomId, cb) {
-  redis.hgetall(`room:${roomId}`, cb);
+  redis.hgetall(`model:room:entity:${roomId}`, cb);
 });
 
 /**
@@ -22,7 +22,7 @@ const _getRoomById = upgradeFunction(function (roomId, cb) {
  * @private
  */
 const _getRoomIdByTitle = upgradeFunction(function (title, cb) {
-  redis.get(`room:title:${title}`, cb);
+  redis.get(`model:room:by:title:${title}`, cb);
 });
 
 /**
@@ -34,31 +34,47 @@ module.exports.init = connection => {
   redis = connection;
 };
 
+/**
+ * Create a room with the specified parameters
+ *
+ * @param {Object} user - User, that creates a room
+ * @param {Object} roomData - Object with room parameters
+ * @param {Function} cb - Callback function
+ */
 module.exports.createRoom = (user, roomData, cb) => {
-  // Increase room counter
+  // Initializing time of creation
+  const createdAt = (new Date()).getTime();
+  // Creating a new room object
+  let newRoom = {
+    'title': roomData.title,
+    'private': !!roomData.private,
+    'createdAt': createdAt,
+  };
+
   async.waterfall([
     // Getting new room id
     cb => {
-      redis.incr(`ids:room`, cb);
+      redis.incr(`model:room:ai:id`, cb);
     },
     // Creating a new room
     (roomId, cb) => {
-      // Initializing time of creation
-      const createdAt = (new Date()).getTime();
+      // Adding room id to the object
+      Object.assign(newRoom, {id: roomId});
+
       // Setting and performing transaction
       redis.multi()
-        // Setting new room hash
-        .hmset(`room:${roomId}`,
-          'id', roomId,
-          'title', roomData.title,
-          'private', roomData.private,
-          'createdAt', createdAt
+      // Setting new room hash
+        .hmset(`model:room:entity:${newRoom.id}`,
+          'id', newRoom.id,
+          'title', newRoom.title,
+          'private', newRoom.private,
+          'createdAt', newRoom.createdAt
         )
         // Setting reverse title->room join
-        .set(`room:${roomData.title}`, roomId)
+        .set(`model:room:by:title:${newRoom.title}`, newRoom.id)
         // Adding data to a sorted set
-        .zadd('members:room', createdAt, roomId)
-        .get('ids:room')
+        .zadd('model:room:unique:id', newRoom.createdAt, newRoom.id)
+        .get('model:room:ai:id')
         .exec(cb)
     }
   ], (err, result) => {
@@ -66,20 +82,79 @@ module.exports.createRoom = (user, roomData, cb) => {
       return cb(err);
     }
     // Returning a room id
-    return cb(null, result[3])
+    return cb(null, newRoom)
   });
 };
 
+/**
+ * Delete the room with the specified parameters
+ *
+ * @param {Object} user - User, that deletes a room
+ * @param {Object} room - Room object
+ * @param {Function} cb - Callback function
+ */
+module.exports.deleteRoom = (user, room, cb) => {
+  // TODO maybe add some user permissions check
+
+  async.waterfall([
+    // Getting room by id
+    cb => _getRoomById(room.id, cb),
+    // // Deleting the room
+    (savedRoom, cb) => {
+      if (!savedRoom) {
+        // TODO change to standard error
+        return cb(new Error('Room not found error.'));
+      }
+      // Setting and performing transaction
+      redis.multi()
+      // Delete room data
+        .del(
+          `model:room:entity:${savedRoom.id}`,
+          `model:room:by:title:${savedRoom.title}`,
+          `model:room:${savedRoom.id}:model:messages`
+        )
+        // Clear room id from available rooms
+        .zrem('model:room:unique:id', savedRoom.id)
+        .exec(cb)
+    }
+  ], (err, result) => {
+    if (err) {
+      return cb(err);
+    }
+    // Returning a previously removed room
+    return cb(null, room)
+  });
+};
+
+/**
+ * Get all the available rooms
+ *
+ * @param {Function} cb - Callback function
+ */
 module.exports.getAllRooms = cb => {
   async.waterfall([
+    /**
+     * Get all room ids
+     *
+     * @param {Function} cb - Callback function
+     */
     cb => {
-      redis.zrange('members:room', '0', '-1', cb);
+      redis.zrange('model:room:unique:id', '0', '-1', cb);
     },
-    (roomIds, cb) => {
+    /**
+     * Get all room objects
+     *
+     * @param {string[]} roomIds - Array of room ids
+     * @param {Function} cb - Callback function
+     */
+      (roomIds, cb) => {
+      // Creating a transaction
       let multi = redis.multi({pipeline: false});
+      // Adding required room to the transaction
       roomIds.forEach(id => {
-        multi.hgetall(`room:${id}`)
+        multi.hgetall(`model:room:entity:${id}`)
       });
+      // Performing the transaction
       multi.exec(cb);
     }
   ], cb);
@@ -116,4 +191,16 @@ module.exports.getRoomByTitle = (title, cb) => {
       _getRoomById(roomId, cb);
     }
   ], cb);
+};
+
+/**
+ * Check if a room with a provided id exists
+ *
+ * @param {Object} room - Room object
+ * @param {Function} cb - Callback function
+ */
+module.exports.isRoomExists = (room, cb) => {
+  _getRoomById(room.id, (err, room) => {
+    cb(null, !!room);
+  })
 };

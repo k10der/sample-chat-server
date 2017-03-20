@@ -14,6 +14,8 @@ module.exports = parameters => {
     require('./redis.service').init(parameters.common, parameters.redis);
     // Setting a client for a rooms service
     require('./rooms.service').init(require('./redis.service').connection);
+    // Setting a client for a messages service
+    require('./messages.service').init(require('./redis.service').connection);
     // Setting a client for a users service
     require('./users.service.js').init(require('./redis.service').connection);
     // Initializing auth service
