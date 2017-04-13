@@ -1,6 +1,6 @@
 'use strict';
 
-const bodyPraser = require('body-parser');
+const bodyParser = require('body-parser');
 const cors = require('express-cors');
 const express = require('express');
 const passport = require('passport');
@@ -11,8 +11,8 @@ module.exports.init = (parametersCommon) => {
 
   // Attaching and configuring app middleware
   app.use(passport.initialize());
-  app.use(bodyPraser.json());
-  app.use(bodyPraser.urlencoded({extended: false}));
+  app.use(bodyParser.json());
+  app.use(bodyParser.urlencoded({extended: false}));
   app.use(cors({
     allowedOrigins: parametersCommon.allowedOrigins,
     allowCredentials: true,
@@ -36,7 +36,7 @@ module.exports.init = (parametersCommon) => {
   app.use('/api', require('./api'));
   // Attaching unified error handler
   app.use((err, req, res, next) => {
-    return res.status(err.statusCode).json(err);
+    return res.status(err.statusCode || 500).json(err);
   });
 
   return app;

@@ -1,0 +1,9 @@
+FROM node:boron
+
+WORKDIR "/app"
+ENTRYPOINT ["npm", "run", "dev"]
+
+EXPOSE 3000
+EXPOSE 5858
+
+RUN npm install -g nodemon

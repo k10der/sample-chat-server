@@ -1,0 +1,25 @@
+version: "3"
+services:
+  redis:
+    image: redis:alpine
+    container_name: sample-chat-server-redis
+    volumes:
+      - ./db:/data
+    networks:
+      - sample-chat-server-network
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile-dev
+    container_name: sample-chat-server-node
+    volumes:
+      - ./:/app
+    ports:
+      - "3000:3000"
+      - "5858:5858"
+    links:
+      - redis
+    networks:
+      - sample-chat-server-network
+networks:
+  sample-chat-server-network:
